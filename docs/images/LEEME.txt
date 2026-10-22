@@ -1,0 +1,17 @@
+Guarda aquí las capturas de pantalla del proyecto con ESTOS nombres exactos
+(el README ya apunta a ellos):
+
+01-index-3-columnas.png   -> pagina principal en pantalla grande (3 columnas)
+02-buscador-espera.png    -> buscador escribiendo "pika" mostrando "Buscando en 4 segundos..."
+03-buscador-resultados.png-> resultados de la busqueda
+04-popup-detalle.png      -> popup abierto con el detalle de un Pokemon
+05-responsive-tablet.png  -> 2 columnas (ancho ~800px)
+06-responsive-movil.png   -> 1 columna (ancho ~400px)
+07-endpoint-1.png         -> navegador en http://localhost:8080/api/pokemon?offset=0&limit=5
+08-endpoint-2.png         -> navegador en http://localhost:8080/api/pokemon/search?q=pika
+09-endpoint-3.png         -> navegador en http://localhost:8080/api/pokemon/25
+10-estructura.png         -> arbol de carpetas del proyecto en el IDE
+11-github-ramas.png       -> GitHub > pestana Branches mostrando main, dev y qa
+12-github-pr.png          -> el Pull Request feature -> dev y dev -> qa
+
+Tip: F12 en el navegador > icono de celular/tablet para las capturas responsivas.

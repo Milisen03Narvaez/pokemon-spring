@@ -1,0 +1,14 @@
+# Carpeta donde Maven deja los archivos compilados (no se sube a Git)
+target/
+# Archivos de configuración de IDEs
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+# Logs
+*.log

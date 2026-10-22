@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<!--
+  VISTA (V de MVC): index.html es una plantilla Thymeleaf.
+  Thymeleaf lee los atributos "th:..." en el servidor, los reemplaza con datos reales
+  y envía al navegador un HTML normal.
+
+  Conexión con las demás partes:
+   - PokemonViewController.index() le entrega "pokemones", "pagina" y (si falla) "error".
+   - /css/styles.css le da el diseño.
+   - /js/app.js le da el comportamiento (buscador, popup, cargar más) y llama a los 3 endpoints.
+-->
+<html lang="es" xmlns:th="http://www.thymeleaf.org"> <!-- xmlns:th activa los atributos th: -->
+<head>
+    <meta charset="UTF-8"> <!-- Soporta tildes y ñ -->
+    <meta name="viewport" content="width=device-width, initial-scale=1"> <!-- Necesario para que sea responsivo en celular -->
+    <title>Pokédex</title> <!-- Título de la pestaña -->
+    <!-- th:href con @{...} arma la ruta correcta hacia el archivo estático de la carpeta static/ -->
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+</head>
+<body>
+
+<!-- ============ ENCABEZADO + BUSCADOR ============ -->
+<header class="encabezado">
+    <h1 class="titulo">Pokédex</h1>
+
+    <!-- Caja de búsqueda. app.js escucha lo que se escribe (evento "input").
+         Espera 4 segundos sin escribir y recién entonces llama al ENDPOINT 2. -->
+    <label class="buscador" for="buscador">
+        <span class="buscador__etiqueta">Buscar por nombre o número</span>
+        <input id="buscador" type="search" placeholder="Ej. pikachu o 25" autocomplete="off">
+    </label>
+
+    <!-- Mensajes del buscador (app.js escribe aquí: "Buscando en 4 s...", "Sin resultados"...) -->
+    <p id="estado" class="estado" role="status" aria-live="polite"></p>
+</header>
+
+<main class="contenido">
+
+    <!-- Mensaje de error si el controller no pudo hablar con la PokeAPI.
+         th:if solo dibuja este bloque cuando existe el atributo "error" -->
+    <p class="alerta" th:if="${error}" th:text="${error}">Error</p>
+
+    <!-- ============ GRILLA DE TARJETAS (3 columnas por CSS) ============ -->
+    <section id="grilla" class="grilla" aria-label="Lista de Pokémon">
+
+        <!-- th:each repite esta tarjeta por cada elemento de la lista "pokemones".
+             Así Thymeleaf pinta las primeras 30 tarjetas desde el servidor. -->
+        <article class="tarjeta" th:each="p : ${pokemones}" th:attr="data-id=${p.id}" tabindex="0">
+            <!-- #numbers.formatInteger(p.id, 3) rellena con ceros: 25 -> 025 -->
+            <span class="tarjeta__numero" th:text="'#' + ${#numbers.formatInteger(p.id, 3)}">#001</span>
+            <img class="tarjeta__imagen" th:src="${p.imageUrl}" th:alt="${p.name}" loading="lazy" alt="">
+            <!-- #strings.capitalize pone la primera letra en mayúscula -->
+            <h2 class="tarjeta__nombre" th:text="${#strings.capitalize(p.name)}">Nombre</h2>
+        </article>
+    </section>
+
+    <!-- Botón "Cargar más": usa el ENDPOINT 1 con el offset guardado en data-offset.
+         Se oculta (clase "oculto") si ya no quedan más Pokémon. -->
+    <div class="centrado">
+        <button id="btn-mas" class="boton" type="button"
+                th:attr="data-offset=${pagina != null ? pagina.siguienteOffset : 0}"
+                th:classappend="${pagina == null or !pagina.hayMas} ? 'oculto' : ''">
+            Cargar más
+        </button>
+    </div>
+</main>
+
+<!-- ============ POPUP (MODAL) DE DETALLE ============
+     Empieza oculto (clase "oculto"). app.js lo muestra al hacer clic en una tarjeta,
+     llama al ENDPOINT 3 y rellena los campos vacíos de abajo. -->
+<div id="modal" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="modal-nombre">
+    <div class="modal__panel">
+
+        <!-- Botón REGRESAR: cierra el popup y vuelve a la lista -->
+        <button id="btn-regresar" class="boton boton--regresar" type="button">← Regresar</button>
+
+        <p id="modal-error" class="alerta oculto"></p> <!-- Error del endpoint 3 -->
+
+        <div id="modal-cuerpo">
+            <img id="modal-imagen" class="modal__imagen" src="" alt="">
+            <p id="modal-numero" class="modal__numero"></p>
+            <h2 id="modal-nombre" class="modal__nombre"></h2>
+            <div id="modal-tipos" class="tipos"></div>
+            <p id="modal-descripcion" class="modal__descripcion"></p>
+
+            <dl class="datos"> <!-- Lista de datos: término (dt) + valor (dd) -->
+                <div><dt>Altura</dt><dd id="modal-altura"></dd></div>
+                <div><dt>Peso</dt><dd id="modal-peso"></dd></div>
+                <div><dt>Exp. base</dt><dd id="modal-exp"></dd></div>
+                <div><dt>Habilidades</dt><dd id="modal-habilidades"></dd></div>
+            </dl>
+
+            <h3 class="subtitulo">Estadísticas base</h3>
+            <div id="modal-stats" class="stats"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Script al final del body para que el HTML ya exista cuando corra -->
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

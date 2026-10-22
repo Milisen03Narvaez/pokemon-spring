@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  pom.xml = "archivo de receta" de Maven.
+  Aquí le decimos a Maven: qué versión de Spring Boot usamos, qué librerías
+  necesitamos (dependencias) y cómo empaquetar/ejecutar el proyecto.
+  Maven lee este archivo cuando ejecutas:  mvn spring-boot:run
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <!-- Versión del formato del pom (siempre 4.0.0) -->
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- "Padre": hereda la configuración y las versiones compatibles de Spring Boot,
+         así no tenemos que poner la versión de cada librería -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.5</version>
+        <relativePath/>
+    </parent>
+
+    <!-- Identidad de NUESTRO proyecto -->
+    <groupId>com.example</groupId>
+    <artifactId>pokedex</artifactId>
+    <version>1.0.0</version>
+    <name>pokedex</name>
+    <description>Pokédex con Spring Boot, Thymeleaf y JavaScript (MVC)</description>
+
+    <properties>
+        <!-- Versión de Java que se usa para compilar (Spring Boot 3 exige 17 o mayor) -->
+        <java.version>17</java.version>
+    </properties>
+
+    <dependencies>
+        <!-- spring-boot-starter-web: trae Tomcat embebido, Spring MVC (@Controller, @RestController),
+             Jackson (JSON) y RestTemplate (para llamar a la PokeAPI) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- spring-boot-starter-thymeleaf: motor de plantillas HTML (la "Vista" del MVC) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
+
+        <!-- spring-boot-starter-test: JUnit y herramientas de prueba (solo se usa al probar) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Plugin que permite ejecutar la app con "mvn spring-boot:run"
+                 y empaquetarla como un .jar ejecutable -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
