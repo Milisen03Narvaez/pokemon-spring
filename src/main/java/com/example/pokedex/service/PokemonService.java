@@ -1,32 +1,31 @@
 package com.example.pokedex.service; // Paquete de SERVICIOS: aquí vive la lógica de negocio
 
-import java.util.ArrayList;     // Lista modificable
-import java.util.LinkedHashMap; // Mapa que conserva el orden de inserción
-import java.util.List;          // Lista
-import java.util.Locale;        // Para pasar a minúsculas sin problemas de idioma
-import java.util.Map;           // Mapa clave-valor
+import java.time.Duration;          // Para definir tiempos de espera
+import java.util.ArrayList;         // Lista modificable
+import java.util.LinkedHashMap;     // Mapa que conserva el orden de inserción
+import java.util.List;              // Lista
+import java.util.Locale;            // Para pasar a minúsculas sin problemas de idioma
+import java.util.Map;               // Mapa clave-valor
 
-import org.springframework.beans.factory.annotation.Value; // Lee valores de application.properties
-import org.springframework.stereotype.Service;             // Marca la clase como servicio de Spring
-import org.springframework.web.client.RestTemplate;        // Cliente HTTP
+import org.springframework.beans.factory.annotation.Value;      // Lee valores de application.properties
+import org.springframework.boot.web.client.RestTemplateBuilder; // Constructor de RestTemplate (lo da Spring Boot)
+import org.springframework.stereotype.Service;                  // Marca la clase como servicio de Spring
+import org.springframework.web.client.RestTemplate;             // Cliente HTTP
 
-import com.example.pokedex.model.PaginaPokemon;   // Modelo: página de tarjetas
-import com.example.pokedex.model.PokemonDetalle;  // Modelo: detalle del popup
-import com.example.pokedex.model.PokemonResumen;  // Modelo: una tarjeta
-import com.fasterxml.jackson.databind.JsonNode;   // Representa un JSON en memoria
+import com.example.pokedex.model.Pokemon;           // Modelo único
+import com.fasterxml.jackson.databind.JsonNode;     // Representa un JSON en memoria
 
 /**
- * SERVICIO: contiene TODA la lógica. Es la única clase que habla con la PokeAPI.
+ * SERVICIO ÚNICO: contiene TODA la lógica. Es la única clase que habla con la PokeAPI.
  *
  * Reglas del MVC de este proyecto:
- *  - Los controllers NO saben cómo se obtienen los datos: solo llaman a este servicio.
- *  - Este servicio NO sabe nada de HTML ni de HTTP del navegador: solo devuelve modelos.
+ *  - El controller NO sabe cómo se obtienen los datos: solo llama a este servicio.
+ *  - Este servicio NO sabe nada de HTML ni de HTTP del navegador: solo devuelve modelos (Pokemon).
  *
- * Quién lo usa:
- *  - PokemonViewController  -> listarPokemon()                (pinta el index)
- *  - PokemonRestController  -> listarPokemon()                (ENDPOINT 1)
- *                           -> buscarPorNombre()              (ENDPOINT 2)
- *                           -> obtenerDetalle()               (ENDPOINT 3)
+ * Lo usa PokemonController:
+ *  - listar()          -> pantalla inicial y ENDPOINT 1
+ *  - buscar()          -> ENDPOINT 2
+ *  - obtenerDetalle()  -> ENDPOINT 3
  */
 @Service // Spring crea UNA instancia y la inyecta donde se pida
 public class PokemonService {
@@ -41,63 +40,55 @@ public class PokemonService {
     private static final String URL_IMAGEN =
             "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/%d.png";
 
-    private final RestTemplate restTemplate; // Cliente HTTP (viene de AppConfig)
+    private final RestTemplate restTemplate; // Cliente HTTP para llamar a la PokeAPI
     private final String baseUrl;            // URL base de la PokeAPI (viene de application.properties)
 
     // Caché en memoria con TODOS los nombres; se llena la primera vez que se busca
-    private List<PokemonResumen> catalogoCache;
+    private List<Pokemon> catalogoCache;
 
     /**
      * Constructor con inyección de dependencias:
-     * Spring entrega el RestTemplate (AppConfig) y el valor de pokeapi.base-url (application.properties).
+     * Spring entrega el RestTemplateBuilder y el valor de pokeapi.base-url (application.properties).
+     * El RestTemplate se crea aquí mismo, por eso ya no hace falta una clase AppConfig.
      */
-    public PokemonService(RestTemplate restTemplate, @Value("${pokeapi.base-url}") String baseUrl) {
-        this.restTemplate = restTemplate; // Guarda el cliente HTTP
-        this.baseUrl = baseUrl;           // Guarda la URL base
+    public PokemonService(RestTemplateBuilder builder, @Value("${pokeapi.base-url}") String baseUrl) {
+        this.restTemplate = builder
+                .setConnectTimeout(Duration.ofSeconds(5)) // Máximo 5 s para conectar con la PokeAPI
+                .setReadTimeout(Duration.ofSeconds(10))   // Máximo 10 s esperando la respuesta
+                .build();                                  // Construye el RestTemplate final
+        this.baseUrl = baseUrl;                            // Guarda la URL base
     }
 
     // =====================================================================
-    // ENDPOINT 1 (lógica): listar Pokémon por páginas
+    // Listar Pokémon por páginas (pantalla inicial y ENDPOINT 1)
     // Llama a la PokeAPI:  GET {baseUrl}/pokemon?limit=X&offset=Y
     // =====================================================================
-    public PaginaPokemon listarPokemon(int offset, int limit) {
+    public List<Pokemon> listar(int offset, int limit) {
         if (offset < 0) offset = 0;          // No se permiten offsets negativos
         if (limit < 1) limit = 1;            // Mínimo 1 elemento
         if (limit > 100) limit = 100;        // Máximo 100 para no saturar la API
 
-        // Si ya pedimos más allá del último Pokémon, devolvemos una página vacía
+        // Si ya pedimos más allá del último Pokémon, devolvemos una lista vacía
         if (offset >= MAX_POKEMON) {
-            return new PaginaPokemon(new ArrayList<>(), MAX_POKEMON, MAX_POKEMON, false);
+            return new ArrayList<>();
         }
 
         // Evita pasarnos del Pokémon 1025 (para no traer formas especiales)
         int limiteReal = Math.min(limit, MAX_POKEMON - offset);
 
-        // Arma la URL final de la PokeAPI
+        // Arma la URL final de la PokeAPI y la llama
         String url = baseUrl + "/pokemon?limit=" + limiteReal + "&offset=" + offset;
-
-        // Llama a la PokeAPI y convierte la respuesta en un JsonNode
         JsonNode respuesta = restTemplate.getForObject(url, JsonNode.class);
 
-        List<PokemonResumen> lista = new ArrayList<>(); // Aquí guardamos las tarjetas
-
-        // "results" es un arreglo de objetos {name, url}
-        for (JsonNode item : respuesta.get("results")) {
-            // Convertimos cada elemento en un PokemonResumen
-            lista.add(construirResumen(item.get("name").asText(), item.get("url").asText()));
-        }
-
-        int siguiente = offset + lista.size(); // Dónde empieza la siguiente página
-        // Devolvemos la página con el dato de si todavía hay más
-        return new PaginaPokemon(lista, MAX_POKEMON, siguiente, siguiente < MAX_POKEMON);
+        return convertirResultados(respuesta); // Convierte el JSON en lista de Pokemon
     }
 
     // =====================================================================
-    // ENDPOINT 2 (lógica): buscar por nombre o número
+    // Buscar por nombre o número (ENDPOINT 2)
     // Usa el catálogo completo en caché y filtra en memoria.
     // =====================================================================
-    public List<PokemonResumen> buscarPorNombre(String texto) {
-        List<PokemonResumen> encontrados = new ArrayList<>(); // Resultado
+    public List<Pokemon> buscar(String texto) {
+        List<Pokemon> encontrados = new ArrayList<>(); // Resultado
 
         // Si no hay texto, no hay nada que buscar
         if (texto == null || texto.isBlank()) {
@@ -108,7 +99,7 @@ public class PokemonService {
         String buscado = texto.trim().toLowerCase(Locale.ROOT);
 
         // Recorre todo el catálogo (se descarga una sola vez)
-        for (PokemonResumen p : obtenerCatalogo()) {
+        for (Pokemon p : obtenerCatalogo()) {
             // Coincide si el nombre contiene el texto, o si el texto es exactamente el número
             if (p.getName().contains(buscado) || String.valueOf(p.getId()).equals(buscado)) {
                 encontrados.add(p); // Lo agregamos al resultado
@@ -122,11 +113,11 @@ public class PokemonService {
     }
 
     // =====================================================================
-    // ENDPOINT 3 (lógica): detalle completo (ENCADENA 2 llamadas a la PokeAPI)
+    // Detalle completo (ENDPOINT 3) - ENCADENA 2 llamadas a la PokeAPI
     //   llamada A: GET {baseUrl}/pokemon/{id}          -> tipos, stats, peso, altura...
     //   llamada B: GET {baseUrl}/pokemon-species/{id}  -> descripción en texto
     // =====================================================================
-    public PokemonDetalle obtenerDetalle(int id) {
+    public Pokemon obtenerDetalle(int id) {
         // Validamos que el id sea de un Pokémon normal
         if (id < 1 || id > MAX_POKEMON) {
             throw new IllegalArgumentException("El id debe estar entre 1 y " + MAX_POKEMON);
@@ -138,40 +129,38 @@ public class PokemonService {
         // Llamada B: datos de la "especie" (aquí viene el texto descriptivo)
         JsonNode especie = restTemplate.getForObject(baseUrl + "/pokemon-species/" + id, JsonNode.class);
 
-        PokemonDetalle detalle = new PokemonDetalle(); // Objeto que vamos a llenar
+        // Datos básicos + imagen oficial; luego se agregan los de detalle
+        Pokemon pokemon = new Pokemon(datos.get("id").asInt(), datos.get("name").asText(), String.format(URL_IMAGEN, id));
 
-        detalle.setId(datos.get("id").asInt());                       // Número
-        detalle.setName(datos.get("name").asText());                  // Nombre
-        detalle.setImageUrl(String.format(URL_IMAGEN, id));           // Imagen oficial
-        detalle.setHeightMeters(datos.get("height").asInt() / 10.0);  // La API da decímetros -> metros
-        detalle.setWeightKg(datos.get("weight").asInt() / 10.0);      // La API da hectogramos -> kg
-        detalle.setBaseExperience(datos.path("base_experience").asInt(0)); // 0 si no existe
+        pokemon.setHeightMeters(datos.get("height").asInt() / 10.0);  // La API da decímetros -> metros
+        pokemon.setWeightKg(datos.get("weight").asInt() / 10.0);      // La API da hectogramos -> kg
+        pokemon.setBaseExperience(datos.path("base_experience").asInt(0)); // 0 si no existe
 
         // ----- Tipos -----
         List<String> tipos = new ArrayList<>();
         for (JsonNode t : datos.get("types")) {
             tipos.add(t.get("type").get("name").asText()); // ej. "electric"
         }
-        detalle.setTypes(tipos);
+        pokemon.setTypes(tipos);
 
         // ----- Habilidades -----
         List<String> habilidades = new ArrayList<>();
         for (JsonNode a : datos.get("abilities")) {
             habilidades.add(a.get("ability").get("name").asText().replace("-", " "));
         }
-        detalle.setAbilities(habilidades);
+        pokemon.setAbilities(habilidades);
 
         // ----- Estadísticas (LinkedHashMap conserva el orden hp, attack, defense...) -----
         Map<String, Integer> stats = new LinkedHashMap<>();
         for (JsonNode s : datos.get("stats")) {
             stats.put(s.get("stat").get("name").asText(), s.get("base_stat").asInt());
         }
-        detalle.setStats(stats);
+        pokemon.setStats(stats);
 
         // ----- Descripción (de la llamada B) -----
-        detalle.setDescription(extraerDescripcion(especie));
+        pokemon.setDescription(extraerDescripcion(especie));
 
-        return detalle; // Lo devuelve al controller
+        return pokemon; // Lo devuelve al controller
     }
 
     // ---------------------------------------------------------------------
@@ -179,23 +168,22 @@ public class PokemonService {
     // ---------------------------------------------------------------------
 
     // Descarga (una sola vez) la lista de todos los Pokémon y la guarda en caché
-    private synchronized List<PokemonResumen> obtenerCatalogo() {
+    private synchronized List<Pokemon> obtenerCatalogo() {
         if (catalogoCache == null) { // Solo si todavía no se descargó
             String url = baseUrl + "/pokemon?limit=" + MAX_POKEMON + "&offset=0";
-            JsonNode respuesta = restTemplate.getForObject(url, JsonNode.class);
-            List<PokemonResumen> todos = new ArrayList<>();
-            for (JsonNode item : respuesta.get("results")) {
-                todos.add(construirResumen(item.get("name").asText(), item.get("url").asText()));
-            }
-            catalogoCache = todos; // Guardamos para no volver a pedirlo
+            catalogoCache = convertirResultados(restTemplate.getForObject(url, JsonNode.class));
         }
         return catalogoCache;
     }
 
-    // Crea un PokemonResumen a partir del nombre y la URL que da la PokeAPI
-    private PokemonResumen construirResumen(String nombre, String url) {
-        int id = extraerId(url); // Sacamos el número desde la URL
-        return new PokemonResumen(id, nombre, String.format(URL_IMAGEN, id));
+    // Convierte el JSON de la PokeAPI ({"results":[{name,url},...]}) en una lista de Pokemon
+    private List<Pokemon> convertirResultados(JsonNode respuesta) {
+        List<Pokemon> lista = new ArrayList<>();
+        for (JsonNode item : respuesta.get("results")) {
+            int id = extraerId(item.get("url").asText()); // Sacamos el número desde la URL
+            lista.add(new Pokemon(id, item.get("name").asText(), String.format(URL_IMAGEN, id)));
+        }
+        return lista;
     }
 
     // La PokeAPI no da el id directo: viene al final de la URL, ej. ".../pokemon/25/"

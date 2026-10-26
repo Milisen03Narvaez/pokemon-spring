@@ -8,12 +8,12 @@
    3) Clic en una tarjeta          -> llama al ENDPOINT 3  (/api/pokemon/{id}) y abre el popup
    4) Botón "Regresar" / Esc       -> cierra el popup
 
-   Todos los endpoints están en PokemonRestController.java.
+   Todos los endpoints están en PokemonController.java.
    ===================================================================== */
 
 // ---------- CONSTANTES (valores fijos que se pueden cambiar fácil) ----------
 const RETARDO_BUSQUEDA_MS = 4000;   // 4 segundos de espera antes de buscar
-const URL_API = "/api/pokemon";     // Prefijo de PokemonRestController
+const URL_API = "/api/pokemon";     // Prefijo de los endpoints de PokemonController
 const TAMANO_PAGINA = 30;           // Debe coincidir con pokedex.page-size de application.properties
 
 // Traducción de nombres de estadísticas (la API los da en inglés)
@@ -99,7 +99,7 @@ async function pedirJson(url) {
 // TARJETAS
 // =====================================================================
 
-// Crea una tarjeta (igual a la que pinta Thymeleaf en index.html) para un PokemonResumen
+// Crea una tarjeta (igual a la que pinta Thymeleaf en index.html) para un Pokemon (solo id, nombre e imagen)
 function crearTarjeta(pokemon) {
     const tarjeta = document.createElement("article");  // <article>
     tarjeta.className = CLASES_TARJETA;                  // Clases de Tailwind
@@ -140,12 +140,11 @@ function mostrarBotonMas(visible) {
 // =====================================================================
 async function cargarPagina(offset, reemplazar) {
     try {
-        // GET /api/pokemon?offset=..&limit=..
-        const pagina = await pedirJson(`${URL_API}?offset=${offset}&limit=${TAMANO_PAGINA}`);
-        pintarTarjetas(pagina.resultados, reemplazar);   // Dibuja las tarjetas
-        offsetActual = pagina.siguienteOffset;           // Recuerda dónde seguir
-        mostrarBotonMas(pagina.hayMas);                  // Oculta el botón si ya no hay más
-        mostrarEstado("");                               // Limpia mensajes
+        // GET /api/pokemon?offset=..&limit=..   (devuelve directamente la lista de Pokémon)
+        const lista = await pedirJson(`${URL_API}?offset=${offset}&limit=${TAMANO_PAGINA}`);
+        pintarTarjetas(lista, reemplazar);               // Dibuja las tarjetas
+        offsetActual = offset + lista.length;            // Recuerda dónde seguir
+        mostrarBotonMas(lista.length === TAMANO_PAGINA); // Si la lista vino incompleta, ya no hay más
     } catch (error) {
         mostrarEstado(error.message);                    // Muestra el error al usuario
     }
