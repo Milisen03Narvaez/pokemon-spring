@@ -5,8 +5,7 @@
   y envía al navegador un HTML normal.
 
   Conexión con las demás partes:
-   - PokemonViewController.index() le entrega "pokemones", "pagina" y (si falla) "error".
-   - /css/styles.css le da el diseño.
+    -PokemonController.index() le entrega "pokemones", "siguienteOffset", "hayMas" y (si falla) "error"   - /css/styles.css le da el diseño.
    - /js/app.js le da el comportamiento (buscador, popup, cargar más) y llama a los 3 endpoints.
 -->
 <html lang="es" xmlns:th="http://www.thymeleaf.org"> <!-- xmlns:th activa los atributos th: -->
@@ -98,8 +97,8 @@
         <button id="btn-mas" type="button"
                 class="bg-rojo text-white rounded-lg px-6 py-3 text-base cursor-pointer hover:bg-rojo-oscuro
                        focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-amarillo"
-                th:attr="data-offset=${pagina != null ? pagina.siguienteOffset : 0}"
-                th:classappend="${pagina == null or !pagina.hayMas} ? 'hidden' : ''">
+                th:attr="data-offset=${siguienteOffset}"
+                th:classappend="${!hayMas} ? 'hidden' : ''">
             Cargar más
         </button>
     </div>

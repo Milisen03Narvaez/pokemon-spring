@@ -8,9 +8,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication; // Anotaci�
  *
  * Conexión con las demás partes:
  *  - @SpringBootApplication hace que Spring busque (escanee) las clases anotadas con
- *    @Configuration, @Service, @Controller y @RestController dentro de
- *    com.example.pokedex.* y las registre automáticamente.
- *  - Así Spring encuentra: AppConfig, PokemonService, PokemonViewController,
+ *    @Service y @Controller dentro de com.example.pokedex.* y las registre automáticamente.
+ *  - Así Spring encuentra PokemonService y PokemonController sin que las instanciemos a mano.
  *    PokemonRestController y ManejadorErrores sin que las instanciemos a mano.
  */
 @SpringBootApplication // Activa configuración automática + escaneo de componentes
