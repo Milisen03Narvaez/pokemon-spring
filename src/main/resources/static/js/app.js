@@ -22,6 +22,36 @@ const NOMBRES_STATS = {
     "special-attack": "At. especial", "special-defense": "Def. especial", "speed": "Velocidad"
 };
 
+
+// ---------- CLASES DE TAILWIND para lo que se crea con JavaScript ----------
+// Deben ser iguales a las de las tarjetas que pinta Thymeleaf en index.html.
+// Se escriben COMPLETAS (sin armarlas con + ) para que Tailwind las detecte siempre.
+const CLASES_TARJETA = "bg-papel border border-linea rounded-xl p-4 text-center cursor-pointer " +
+    "transition-[border-color,transform] duration-150 motion-reduce:transition-none " +
+    "hover:border-rojo hover:-translate-y-[3px] " +
+    "focus-visible:border-rojo focus-visible:-translate-y-[3px] focus-visible:outline-none";
+const CLASES_NUMERO = "block text-tinta-suave text-[.85rem] text-left";
+const CLASES_IMAGEN = "w-full max-w-[140px] aspect-square object-contain mx-auto";
+const CLASES_NOMBRE = "mt-1 text-[1.05rem] font-bold";
+
+// Etiqueta de tipo: base + color según el tipo (antes eran .tipo--fire, .tipo--water...)
+const CLASES_TIPO = "px-3 py-[.15rem] rounded-full text-white text-[.85rem] ";
+const COLORES_TIPO = {
+    "fire": "bg-[#e8622c]",     "water": "bg-[#3b82d6]",    "grass": "bg-[#3f9b4a]",
+    "electric": "bg-[#c99a00]", "psychic": "bg-[#d6457a]",  "ice": "bg-[#3fa7b5]",
+    "dragon": "bg-[#5a4fd1]",   "dark": "bg-[#4a4350]",     "fairy": "bg-[#c46fb0]",
+    "poison": "bg-[#8e4fb3]",   "ground": "bg-[#a77a3a]",   "rock": "bg-[#8c8458]",
+    "bug": "bg-[#7a9a1f]",      "ghost": "bg-[#5c4f94]",    "steel": "bg-[#6f8795]",
+    "fighting": "bg-[#b3422e]", "flying": "bg-[#6f8fd6]",   "normal": "bg-[#7f8794]"
+};
+const COLOR_TIPO_DEFECTO = "bg-[#6b7385]"; // Si aparece un tipo desconocido
+
+// Barras de estadísticas
+const CLASES_STAT = "grid grid-cols-[110px_40px_1fr] items-center gap-2 mb-[.35rem] text-[.9rem]";
+const CLASES_STAT_BARRA = "bg-fondo rounded-full h-2 overflow-hidden";
+const CLASES_STAT_RELLENO = "block h-full bg-rojo"; // El ancho lo pone JavaScript abajo
+
+
 // ---------- REFERENCIAS A ELEMENTOS DEL HTML (los ids vienen de index.html) ----------
 const buscador = document.getElementById("buscador");       // Caja de texto
 const estado = document.getElementById("estado");           // Párrafo de mensajes
@@ -72,22 +102,22 @@ async function pedirJson(url) {
 // Crea una tarjeta (igual a la que pinta Thymeleaf en index.html) para un PokemonResumen
 function crearTarjeta(pokemon) {
     const tarjeta = document.createElement("article");  // <article>
-    tarjeta.className = "tarjeta";                       // Clase de styles.css
+    tarjeta.className = CLASES_TARJETA;                  // Clases de Tailwind
     tarjeta.dataset.id = pokemon.id;                     // Guarda el id (lo usa el clic -> ENDPOINT 3)
     tarjeta.tabIndex = 0;                                // Permite enfocarla con teclado
 
     const numero = document.createElement("span");       // Número
-    numero.className = "tarjeta__numero";
+    numero.className = CLASES_NUMERO;
     numero.textContent = formatearNumero(pokemon.id);
 
     const imagen = document.createElement("img");        // Imagen
-    imagen.className = "tarjeta__imagen";
+    imagen.className = CLASES_IMAGEN;
     imagen.src = pokemon.imageUrl;
     imagen.alt = pokemon.name;
     imagen.loading = "lazy";
 
     const nombre = document.createElement("h2");         // Nombre
-    nombre.className = "tarjeta__nombre";
+    nombre.className = CLASES_NOMBRE;
     nombre.textContent = capitalizar(pokemon.name);      // textContent evita inyección de HTML
 
     tarjeta.append(numero, imagen, nombre);              // Arma la tarjeta
@@ -102,7 +132,7 @@ function pintarTarjetas(lista, reemplazar) {
 
 // Muestra u oculta el botón "Cargar más"
 function mostrarBotonMas(visible) {
-    btnMas.classList.toggle("oculto", !visible);
+    btnMas.classList.toggle("hidden", !visible);   // "hidden" = display:none de Tailwind
 }
 
 // =====================================================================
@@ -171,19 +201,19 @@ btnMas.addEventListener("click", () => cargarPagina(offsetActual, false));
 
 // Abre el popup y carga los datos del Pokémon con ese id
 async function abrirDetalle(id) {
-    modal.classList.remove("oculto");                    // Muestra el popup
-    modalError.classList.add("oculto");                  // Oculta errores anteriores
-    modalCuerpo.classList.add("oculto");                 // Oculta contenido viejo mientras carga
+    modal.classList.remove("hidden");                    // Muestra el popup
+    modalError.classList.add("hidden");                  // Oculta errores anteriores
+    modalCuerpo.classList.add("hidden");                 // Oculta contenido viejo mientras carga
     btnRegresar.focus();                                 // Lleva el foco al botón Regresar
 
     try {
         // GET /api/pokemon/{id}
         const d = await pedirJson(`${URL_API}/${id}`);
         rellenarModal(d);                                // Escribe los datos en el popup
-        modalCuerpo.classList.remove("oculto");          // Muestra el contenido
+        modalCuerpo.classList.remove("hidden");          // Muestra el contenido
     } catch (error) {
         modalError.textContent = error.message;          // Muestra el error dentro del popup
-        modalError.classList.remove("oculto");
+        modalError.classList.remove("hidden");
     }
 }
 
@@ -204,7 +234,7 @@ function rellenarModal(d) {
     contTipos.replaceChildren();                         // Limpia los anteriores
     d.types.forEach(tipo => {
         const etiqueta = document.createElement("span");
-        etiqueta.className = "tipo tipo--" + tipo;       // Ej. "tipo tipo--fire"
+        etiqueta.className = CLASES_TIPO + (COLORES_TIPO[tipo] || COLOR_TIPO_DEFECTO); // Ej. fire -> naranja
         etiqueta.textContent = tipo;
         contTipos.appendChild(etiqueta);
     });
@@ -214,7 +244,7 @@ function rellenarModal(d) {
     contStats.replaceChildren();
     Object.entries(d.stats).forEach(([nombre, valor]) => {
         const fila = document.createElement("div");      // Fila de la estadística
-        fila.className = "stat";
+        fila.className = CLASES_STAT;
 
         const etiqueta = document.createElement("span"); // Nombre traducido
         etiqueta.textContent = NOMBRES_STATS[nombre] || nombre;
@@ -223,9 +253,9 @@ function rellenarModal(d) {
         numero.textContent = valor;
 
         const barra = document.createElement("span");    // Fondo de la barra
-        barra.className = "stat__barra";
+        barra.className = CLASES_STAT_BARRA;
         const relleno = document.createElement("span");  // Parte rellena
-        relleno.className = "stat__relleno";
+        relleno.className = CLASES_STAT_RELLENO;
         relleno.style.width = Math.min(100, (valor / 255) * 100) + "%"; // 255 = valor máximo posible
         barra.appendChild(relleno);
 
@@ -236,19 +266,19 @@ function rellenarModal(d) {
 
 // Cierra el popup (volver a la lista)
 function cerrarModal() {
-    modal.classList.add("oculto");
+    modal.classList.add("hidden");
 }
 
 // Clic en una tarjeta. Usamos "delegación de eventos": UN solo listener en la grilla
 // sirve para las tarjetas de Thymeleaf Y para las que crea JavaScript después.
 grilla.addEventListener("click", (evento) => {
-    const tarjeta = evento.target.closest(".tarjeta");   // Busca la tarjeta clicada
+    const tarjeta = evento.target.closest("[data-id]");   // Busca la tarjeta clicada (la que tiene data-id)
     if (tarjeta) abrirDetalle(tarjeta.dataset.id);       // Toma su id -> ENDPOINT 3
 });
 
 // Misma acción con teclado (Enter sobre una tarjeta enfocada)
 grilla.addEventListener("keydown", (evento) => {
-    const tarjeta = evento.target.closest(".tarjeta");
+    const tarjeta = evento.target.closest("[data-id]");
     if (tarjeta && evento.key === "Enter") abrirDetalle(tarjeta.dataset.id);
 });
 
