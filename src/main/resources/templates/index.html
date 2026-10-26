@@ -15,83 +15,130 @@
     <meta name="viewport" content="width=device-width, initial-scale=1"> <!-- Necesario para que sea responsivo en celular -->
     <title>Pokédex</title> <!-- Título de la pestaña -->
     <!-- th:href con @{...} arma la ruta correcta hacia el archivo estático de la carpeta static/ -->
-    <link rel="stylesheet" th:href="@{/css/styles.css}">
+    <!-- Tailwind CSS por CDN (modo "Play"): no necesita Node ni compilar nada.
+     Genera en el navegador solo las clases que usamos, incluso las que app.js agrega después. -->
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+    <script>
+        // Colores y tipografía propios de la Pokédex (antes eran las variables de styles.css).
+        // Con esto existen clases como bg-rojo, text-tinta-suave, hover:bg-rojo-oscuro, etc.
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        rojo: { DEFAULT: '#c8312b', oscuro: '#8f1f1a' }, // Encabezado y botones
+                        fondo: '#eceff3',                                // Fondo general
+                        papel: '#ffffff',                                // Tarjetas y popup
+                        tinta: { DEFAULT: '#1d2330', suave: '#5b6475' }, // Texto principal y secundario
+                        linea: '#d6dbe3',                                // Bordes suaves
+                        amarillo: '#ffd24a',                             // Anillo de foco con teclado
+                        alerta: { fondo: '#fde8e7', texto: '#7a1410', borde: '#f3b8b5' }
+                    },
+                    fontFamily: {
+                        sans: ['"Segoe UI"', 'system-ui', '-apple-system', 'Roboto', 'sans-serif']
+                    }
+                }
+            }
+        };
+    </script>
 </head>
-<body>
+
+<body class="m-0 bg-fondo text-tinta font-sans leading-normal">
 
 <!-- ============ ENCABEZADO + BUSCADOR ============ -->
-<header class="encabezado">
-    <h1 class="titulo">Pokédex</h1>
+<header class="bg-rojo text-white px-4 pt-6 pb-5 border-b-[6px] border-rojo-oscuro text-center">
+    <h1 class="mb-4 text-[2rem] max-[560px]:text-[1.6rem] font-bold tracking-[.02em]">Pokédex</h1>
 
     <!-- Caja de búsqueda. app.js escucha lo que se escribe (evento "input").
          Espera 4 segundos sin escribir y recién entonces llama al ENDPOINT 2. -->
-    <label class="buscador" for="buscador">
-        <span class="buscador__etiqueta">Buscar por nombre o número</span>
-        <input id="buscador" type="search" placeholder="Ej. pikachu o 25" autocomplete="off">
+    <label class="block max-w-[420px] mx-auto text-left" for="buscador">
+        <span class="block text-[.85rem] mb-1">Buscar por nombre o número</span>
+        <!-- text-tinta y bg-white son necesarios: Tailwind hace que el input herede el color blanco del header -->
+        <input id="buscador" type="search" placeholder="Ej. pikachu o 25" autocomplete="off"
+               class="w-full px-4 py-3 border-0 rounded-lg text-base text-tinta bg-white
+                      focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-amarillo">
     </label>
 
     <!-- Mensajes del buscador (app.js escribe aquí: "Buscando en 4 s...", "Sin resultados"...) -->
-    <p id="estado" class="estado" role="status" aria-live="polite"></p>
+    <p id="estado" class="min-h-[1.4em] mt-2 text-[.9rem]" role="status" aria-live="polite"></p>
 </header>
 
-<main class="contenido">
+<main class="max-w-[1000px] mx-auto px-4 pt-6 pb-12">
 
     <!-- Mensaje de error si el controller no pudo hablar con la PokeAPI.
          th:if solo dibuja este bloque cuando existe el atributo "error" -->
-    <p class="alerta" th:if="${error}" th:text="${error}">Error</p>
+    <p class="bg-alerta-fondo text-alerta-texto border border-alerta-borde rounded-lg px-4 py-3"
+       th:if="${error}" th:text="${error}">Error</p>
 
-    <!-- ============ GRILLA DE TARJETAS (3 columnas por CSS) ============ -->
-    <section id="grilla" class="grilla" aria-label="Lista de Pokémon">
+    <!-- ============ GRILLA DE TARJETAS ============
+         1 columna en celular, 2 desde 561px (tablet), 3 desde 861px (escritorio). -->
+    <section id="grilla" class="grid grid-cols-1 min-[561px]:grid-cols-2 min-[861px]:grid-cols-3 gap-4"
+             aria-label="Lista de Pokémon">
 
         <!-- th:each repite esta tarjeta por cada elemento de la lista "pokemones".
-             Así Thymeleaf pinta las primeras 30 tarjetas desde el servidor. -->
-        <article class="tarjeta" th:each="p : ${pokemones}" th:attr="data-id=${p.id}" tabindex="0">
+             Así Thymeleaf pinta las primeras 30 tarjetas desde el servidor.
+             OJO: estas clases deben ser las mismas que usa crearTarjeta() en app.js. -->
+        <article class="bg-papel border border-linea rounded-xl p-4 text-center cursor-pointer
+                        transition-[border-color,transform] duration-150 motion-reduce:transition-none
+                        hover:border-rojo hover:-translate-y-[3px]
+                        focus-visible:border-rojo focus-visible:-translate-y-[3px] focus-visible:outline-none"
+                 th:each="p : ${pokemones}" th:attr="data-id=${p.id}" tabindex="0">
             <!-- #numbers.formatInteger(p.id, 3) rellena con ceros: 25 -> 025 -->
-            <span class="tarjeta__numero" th:text="'#' + ${#numbers.formatInteger(p.id, 3)}">#001</span>
-            <img class="tarjeta__imagen" th:src="${p.imageUrl}" th:alt="${p.name}" loading="lazy" alt="">
+            <span class="block text-tinta-suave text-[.85rem] text-left"
+                  th:text="'#' + ${#numbers.formatInteger(p.id, 3)}">#001</span>
+            <img class="w-full max-w-[140px] aspect-square object-contain mx-auto"
+                 th:src="${p.imageUrl}" th:alt="${p.name}" loading="lazy" alt="">
             <!-- #strings.capitalize pone la primera letra en mayúscula -->
-            <h2 class="tarjeta__nombre" th:text="${#strings.capitalize(p.name)}">Nombre</h2>
+            <h2 class="mt-1 text-[1.05rem] font-bold" th:text="${#strings.capitalize(p.name)}">Nombre</h2>
         </article>
     </section>
 
     <!-- Botón "Cargar más": usa el ENDPOINT 1 con el offset guardado en data-offset.
-         Se oculta (clase "oculto") si ya no quedan más Pokémon. -->
-    <div class="centrado">
-        <button id="btn-mas" class="boton" type="button"
+         Se oculta (clase "hidden" de Tailwind) si ya no quedan más Pokémon. -->
+    <div class="text-center mt-6">
+        <button id="btn-mas" type="button"
+                class="bg-rojo text-white rounded-lg px-6 py-3 text-base cursor-pointer hover:bg-rojo-oscuro
+                       focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-amarillo"
                 th:attr="data-offset=${pagina != null ? pagina.siguienteOffset : 0}"
-                th:classappend="${pagina == null or !pagina.hayMas} ? 'oculto' : ''">
+                th:classappend="${pagina == null or !pagina.hayMas} ? 'hidden' : ''">
             Cargar más
         </button>
     </div>
 </main>
 
 <!-- ============ POPUP (MODAL) DE DETALLE ============
-     Empieza oculto (clase "oculto"). app.js lo muestra al hacer clic en una tarjeta,
+     Empieza oculto (clase "hidden"). app.js lo muestra al hacer clic en una tarjeta,
      llama al ENDPOINT 3 y rellena los campos vacíos de abajo. -->
-<div id="modal" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="modal-nombre">
-    <div class="modal__panel">
+<div id="modal" class="hidden fixed inset-0 bg-[#141822]/60 flex items-center justify-center p-4 z-10"
+     role="dialog" aria-modal="true" aria-labelledby="modal-nombre">
+    <div class="bg-papel rounded-[14px] w-full max-w-[520px] max-h-[92vh] overflow-y-auto p-5">
 
         <!-- Botón REGRESAR: cierra el popup y vuelve a la lista -->
-        <button id="btn-regresar" class="boton boton--regresar" type="button">← Regresar</button>
+        <button id="btn-regresar" type="button"
+                class="bg-rojo text-white rounded-lg mb-4 px-4 py-2 text-base cursor-pointer hover:bg-rojo-oscuro
+                       focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-amarillo">
+            ← Regresar
+        </button>
 
-        <p id="modal-error" class="alerta oculto"></p> <!-- Error del endpoint 3 -->
+        <!-- Error del endpoint 3 -->
+        <p id="modal-error"
+           class="hidden bg-alerta-fondo text-alerta-texto border border-alerta-borde rounded-lg px-4 py-3"></p>
 
         <div id="modal-cuerpo">
-            <img id="modal-imagen" class="modal__imagen" src="" alt="">
-            <p id="modal-numero" class="modal__numero"></p>
-            <h2 id="modal-nombre" class="modal__nombre"></h2>
-            <div id="modal-tipos" class="tipos"></div>
-            <p id="modal-descripcion" class="modal__descripcion"></p>
+            <img id="modal-imagen" class="block w-[220px] max-w-[70%] mx-auto" src="" alt="">
+            <p id="modal-numero" class="text-center text-tinta-suave"></p>
+            <h2 id="modal-nombre" class="mt-[.1rem] mb-2 text-center text-[1.6rem] font-bold"></h2>
+            <div id="modal-tipos" class="flex justify-center gap-2 flex-wrap"></div>
+            <p id="modal-descripcion" class="my-4"></p>
 
-            <dl class="datos"> <!-- Lista de datos: término (dt) + valor (dd) -->
-                <div><dt>Altura</dt><dd id="modal-altura"></dd></div>
-                <div><dt>Peso</dt><dd id="modal-peso"></dd></div>
-                <div><dt>Exp. base</dt><dd id="modal-exp"></dd></div>
-                <div><dt>Habilidades</dt><dd id="modal-habilidades"></dd></div>
+            <dl class="grid grid-cols-2 gap-x-4 gap-y-2"> <!-- Lista de datos: término (dt) + valor (dd) -->
+                <div><dt class="text-[.8rem] text-tinta-suave">Altura</dt><dd id="modal-altura" class="font-semibold capitalize"></dd></div>
+                <div><dt class="text-[.8rem] text-tinta-suave">Peso</dt><dd id="modal-peso" class="font-semibold capitalize"></dd></div>
+                <div><dt class="text-[.8rem] text-tinta-suave">Exp. base</dt><dd id="modal-exp" class="font-semibold capitalize"></dd></div>
+                <div><dt class="text-[.8rem] text-tinta-suave">Habilidades</dt><dd id="modal-habilidades" class="font-semibold capitalize"></dd></div>
             </dl>
 
-            <h3 class="subtitulo">Estadísticas base</h3>
-            <div id="modal-stats" class="stats"></div>
+            <h3 class="mt-5 mb-2 text-base font-bold">Estadísticas base</h3>
+            <div id="modal-stats"></div>
         </div>
     </div>
 </div>
