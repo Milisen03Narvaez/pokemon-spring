@@ -109,14 +109,18 @@
      llama al ENDPOINT 3 y rellena los campos vacíos de abajo. -->
 <div id="modal" class="hidden fixed inset-0 bg-[#141822]/60 flex items-center justify-center p-4 z-10"
      role="dialog" aria-modal="true" aria-labelledby="modal-nombre">
-    <div class="bg-papel rounded-[14px] w-full max-w-[520px] max-h-[92vh] overflow-y-auto p-5">
+    <!-- CAJA del nivel 1: borde superior ROJO (nivel 1 = rojo, nivel 2 = azul, nivel 3 = dorado) -->
+    <div class="bg-papel rounded-[14px] w-full max-w-[520px] max-h-[92vh] overflow-y-auto p-5 border-t-8 border-rojo">
 
-        <!-- Botón REGRESAR: cierra el popup y vuelve a la lista -->
-        <button id="btn-regresar" type="button"
-                class="bg-rojo text-white rounded-lg mb-4 px-4 py-2 text-base cursor-pointer hover:bg-rojo-oscuro
-                       focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-amarillo">
-            ← Regresar
-        </button>
+        <!-- Fila superior: botón REGRESAR a la izquierda e insignia "Nivel 1" a la derecha -->
+        <div class="flex items-center justify-between mb-4">
+            <button id="btn-regresar" type="button"
+                    class="bg-rojo text-white rounded-lg px-4 py-2 text-base cursor-pointer hover:bg-rojo-oscuro
+                           focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-amarillo">
+                ← Regresar
+            </button>
+            <span class="bg-rojo text-white text-[.85rem] font-bold px-3 py-1 rounded-full">Nivel 1</span>
+        </div>
 
         <!-- Error del endpoint 3 -->
         <p id="modal-error"

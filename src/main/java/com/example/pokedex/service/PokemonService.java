@@ -36,6 +36,9 @@ public class PokemonService {
     // Máximo de resultados que devuelve la búsqueda (evita pintar cientos de tarjetas)
     private static final int MAX_RESULTADOS_BUSQUEDA = 60;
 
+    // Máximo de Pokémon que se muestran en el popup del nivel 2 (lista del tipo)
+    private static final int MAX_POKEMON_POR_TIPO = 12;
+
     // Plantilla de la URL de la imagen oficial; %d se reemplaza por el id del Pokémon
     private static final String URL_IMAGEN =
             "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/%d.png";
@@ -163,6 +166,41 @@ public class PokemonService {
         return pokemon; // Lo devuelve al controller
     }
 
+    // =====================================================================
+    // Detalle de un TIPO (ENDPOINT 4) - contenido del popup NIVEL 2
+    //   GET {baseUrl}/type/{nombre} -> relaciones de daño + Pokémon de ese tipo
+    // Devuelve un Map para no crear otro modelo (se mantiene un solo model).
+    // =====================================================================
+    public Map<String, Object> obtenerTipo(String nombre) {
+        // Validación: solo letras minúsculas. Evita que el usuario meta rutas raras en la URL
+        if (nombre == null || !nombre.matches("[a-z]{1,20}")) {
+            throw new IllegalArgumentException("Tipo inválido");
+        }
+
+        // Llamada a la PokeAPI
+        JsonNode datos = restTemplate.getForObject(baseUrl + "/type/" + nombre, JsonNode.class);
+        JsonNode relaciones = datos.get("damage_relations"); // Quién gana y quién pierde contra este tipo
+
+        // Primeros Pokémon del tipo (solo los "normales": id <= 1025)
+        List<Pokemon> pokemones = new ArrayList<>();
+        for (JsonNode item : datos.get("pokemon")) {
+            JsonNode p = item.get("pokemon");              // Cada item trae {pokemon:{name,url}, slot}
+            int id = extraerId(p.get("url").asText());     // Reutilizamos el método que ya existe
+            if (id <= MAX_POKEMON) {
+                pokemones.add(new Pokemon(id, p.get("name").asText(), String.format(URL_IMAGEN, id)));
+            }
+            if (pokemones.size() >= MAX_POKEMON_POR_TIPO) break; // Cortamos al llegar al máximo
+        }
+
+        // LinkedHashMap conserva el orden en el JSON
+        Map<String, Object> resultado = new LinkedHashMap<>();
+        resultado.put("name", datos.get("name").asText());
+        resultado.put("doubleDamageTo", extraerNombres(relaciones.get("double_damage_to")));     // Fuerte contra
+        resultado.put("doubleDamageFrom", extraerNombres(relaciones.get("double_damage_from"))); // Débil contra
+        resultado.put("pokemon", pokemones);
+        return resultado;
+    }
+
     // ---------------------------------------------------------------------
     // MÉTODOS PRIVADOS (ayudantes internos, nadie fuera de esta clase los usa)
     // ---------------------------------------------------------------------
@@ -191,6 +229,15 @@ public class PokemonService {
         String limpia = url.endsWith("/") ? url.substring(0, url.length() - 1) : url; // Quita "/" final
         String ultimo = limpia.substring(limpia.lastIndexOf('/') + 1);                  // Toma lo que sigue al último "/"
         return Integer.parseInt(ultimo);                                                // Lo convierte a número
+    }
+
+    // Convierte [{name:"fire",url:..},{name:"ice",url:..}] en ["fire","ice"]
+    private List<String> extraerNombres(JsonNode arreglo) {
+        List<String> nombres = new ArrayList<>();
+        for (JsonNode n : arreglo) {
+            nombres.add(n.get("name").asText());
+        }
+        return nombres;
     }
 
     // Busca el texto descriptivo: primero en español, si no hay, en inglés

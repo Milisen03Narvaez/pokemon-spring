@@ -45,7 +45,24 @@ const COLORES_TIPO = {
     "fighting": "bg-[#b3422e]", "flying": "bg-[#6f8fd6]",   "normal": "bg-[#7f8794]"
 };
 const COLOR_TIPO_DEFECTO = "bg-[#6b7385]"; // Si aparece un tipo desconocido
+// ---------- POPUPS ANIDADOS (niveles 2 y 3) ----------
+// Cada nivel tiene tamaño (max-w), color (borde y insignia), posición (left/top) y z-index propios.
+// Las clases van COMPLETAS (sin armarlas con +) para que Tailwind las detecte siempre.
+const ESTILOS_NIVEL = {
+    2: { fondo: "z-20",   // z-20 > z-10 del nivel 1: queda encima
+        caja: "max-w-[440px] border-t-8 border-[#3b82d6] min-[561px]:left-6 min-[561px]:top-4",
+        insignia: "bg-[#3b82d6]" },
+    3: { fondo: "z-30",   // z-30 > z-20: queda encima del nivel 2
+        caja: "max-w-[360px] border-t-8 border-[#c99a00] min-[561px]:left-12 min-[561px]:top-8",
+        insignia: "bg-[#c99a00]" }
+};
+const CLASES_BOTON_ROJO = "bg-rojo text-white rounded-lg px-4 py-2 text-base cursor-pointer hover:bg-rojo-oscuro " +
+    "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-amarillo";
+const CLASES_ERROR = "hidden bg-alerta-fondo text-alerta-texto border border-alerta-borde rounded-lg px-4 py-3 mb-3";
 
+// PILA de popups extra abiertos: el último de la lista es el de más arriba.
+// Al cerrar se hace pop() -> se vuelve al anterior (3 -> 2 -> 1).
+const pilaPopups = [];
 // Barras de estadísticas
 const CLASES_STAT = "grid grid-cols-[110px_40px_1fr] items-center gap-2 mb-[.35rem] text-[.9rem]";
 const CLASES_STAT_BARRA = "bg-fondo rounded-full h-2 overflow-hidden";
@@ -232,9 +249,13 @@ function rellenarModal(d) {
     const contTipos = document.getElementById("modal-tipos");
     contTipos.replaceChildren();                         // Limpia los anteriores
     d.types.forEach(tipo => {
-        const etiqueta = document.createElement("span");
-        etiqueta.className = CLASES_TIPO + (COLORES_TIPO[tipo] || COLOR_TIPO_DEFECTO); // Ej. fire -> naranja
+        const etiqueta = document.createElement("button");   // Ahora es botón (se puede pulsar)
+        etiqueta.type = "button";
+        etiqueta.className = CLASES_TIPO + (COLORES_TIPO[tipo] || COLOR_TIPO_DEFECTO) +
+            " cursor-pointer hover:brightness-110 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-amarillo";
         etiqueta.textContent = tipo;
+        etiqueta.title = "Ver detalle del tipo " + tipo;
+        etiqueta.addEventListener("click", () => abrirTipo(tipo)); // Abre el NIVEL 2
         contTipos.appendChild(etiqueta);
     });
 
@@ -263,8 +284,9 @@ function rellenarModal(d) {
     });
 }
 
-// Cierra el popup (volver a la lista)
+// Cierra el popup del nivel 1 (y antes cualquier popup extra que siga abierto)
 function cerrarModal() {
+    while (pilaPopups.length > 0) cerrarUltimoPopup();
     modal.classList.add("hidden");
 }
 
@@ -284,8 +306,161 @@ grilla.addEventListener("keydown", (evento) => {
 // ---------- Formas de cerrar el popup ----------
 btnRegresar.addEventListener("click", cerrarModal);      // Botón "Regresar"
 document.addEventListener("keydown", (evento) => {       // Tecla Esc
-    if (evento.key === "Escape") cerrarModal();
+    if (evento.key === "Escape") {
+        if (pilaPopups.length > 0) cerrarUltimoPopup();  // Cierra SOLO el popup de más arriba
+        else cerrarModal();                              // Si no hay extras, cierra el nivel 1
+    }
 });
 modal.addEventListener("click", (evento) => {             // Clic en el fondo oscuro
     if (evento.target === modal) cerrarModal();
 });
+// =====================================================================
+// 4) POPUPS ANIDADOS: nivel 2 (tipo) y nivel 3 (mini ficha del Pokémon)
+// =====================================================================
+
+// Atajo para crear un elemento con clases y texto (usa textContent: evita inyección de HTML)
+function crearElemento(etiqueta, clases, texto) {
+    const e = document.createElement(etiqueta);
+    e.className = clases;
+    if (texto !== undefined) e.textContent = texto;
+    return e;
+}
+
+// Crea un popup extra (nivel 2 o 3), lo agrega a la pantalla y lo mete en la pila.
+// Devuelve { cuerpo, error } para que cada nivel escriba su contenido.
+function crearPopupExtra(nivel, titulo) {
+    const estilo = ESTILOS_NIVEL[nivel];
+
+    // Fondo oscuro que cubre la pantalla (su z-index decide quién queda arriba)
+    const fondo = crearElemento("div", "fixed inset-0 bg-[#141822]/50 flex items-center justify-center p-4 " + estilo.fondo);
+    fondo.setAttribute("role", "dialog");
+    fondo.setAttribute("aria-modal", "true");
+    fondo.setAttribute("aria-label", `Nivel ${nivel}: ${titulo}`);
+
+    // Caja blanca (tamaño, color y posición salen de ESTILOS_NIVEL)
+    const caja = crearElemento("div", "relative bg-papel rounded-[14px] w-full max-h-[85vh] overflow-y-auto p-5 shadow-2xl " + estilo.caja);
+
+    // Fila superior: botón "Regresar al nivel N-1" + insignia "Nivel N"
+    const cabecera = crearElemento("div", "flex items-center justify-between mb-4");
+    const btnVolver = crearElemento("button", CLASES_BOTON_ROJO, `← Regresar al nivel ${nivel - 1}`);
+    btnVolver.type = "button";
+    btnVolver.addEventListener("click", cerrarUltimoPopup);
+    const insignia = crearElemento("span", "text-white text-[.85rem] font-bold px-3 py-1 rounded-full " + estilo.insignia, `Nivel ${nivel}`);
+    cabecera.append(btnVolver, insignia);
+
+    const error = crearElemento("p", CLASES_ERROR);   // Mensaje de error (oculto)
+    const cuerpo = crearElemento("div", "");          // Aquí va el contenido de la PokeAPI
+    cuerpo.append(crearElemento("p", "text-center text-tinta-suave", "Cargando..."));
+
+    caja.append(cabecera, error, cuerpo);
+    fondo.appendChild(caja);
+    fondo.addEventListener("click", (evento) => {     // Clic en el fondo oscuro = cerrar este nivel
+        if (evento.target === fondo) cerrarUltimoPopup();
+    });
+
+    document.body.appendChild(fondo);                 // Lo muestra
+    pilaPopups.push(fondo);                           // Lo registra en la pila
+    btnVolver.focus();                                // Accesibilidad: foco al botón
+    return { cuerpo, error };
+}
+
+// Cierra el popup de más arriba y devuelve el foco al de abajo
+function cerrarUltimoPopup() {
+    const popup = pilaPopups.pop();                   // Saca el último de la pila
+    if (popup) popup.remove();                        // Lo quita de la pantalla
+    const anterior = pilaPopups[pilaPopups.length - 1];
+    (anterior ? anterior.querySelector("button") : btnRegresar).focus();
+}
+
+// ---------- NIVEL 2: detalle de un tipo -> ENDPOINT 4 ----------
+async function abrirTipo(nombreTipo) {
+    const { cuerpo, error } = crearPopupExtra(2, nombreTipo);
+    try {
+        // GET /api/pokemon/tipo/{nombre}
+        const t = await pedirJson(`${URL_API}/tipo/${encodeURIComponent(nombreTipo)}`);
+        pintarTipo(cuerpo, t);
+    } catch (e) {
+        cuerpo.replaceChildren();
+        error.textContent = e.message;
+        error.classList.remove("hidden");
+    }
+}
+
+// Dibuja el contenido del nivel 2
+function pintarTipo(cuerpo, t) {
+    const titulo = crearElemento("h2", "mb-3 text-[1.5rem] font-bold text-center", "Tipo " + capitalizar(t.name));
+    const subtitulo = crearElemento("h3", "mt-5 mb-2 text-base font-bold", "Algunos Pokémon de este tipo (toca uno)");
+
+    // Cuadrícula de Pokémon: cada uno es un botón con data-id
+    const lista = crearElemento("div", "grid grid-cols-3 gap-2");
+    t.pokemon.forEach(p => {
+        const boton = crearElemento("button",
+            "bg-fondo border border-linea rounded-lg p-2 text-center cursor-pointer hover:border-rojo " +
+            "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-amarillo");
+        boton.type = "button";
+        boton.dataset.id = p.id;
+        const imagen = crearElemento("img", "w-full aspect-square object-contain");
+        imagen.src = p.imageUrl;
+        imagen.alt = p.name;
+        imagen.loading = "lazy";
+        boton.append(imagen, crearElemento("span", "block text-[.8rem] font-semibold", capitalizar(p.name)));
+        lista.appendChild(boton);
+    });
+    // Delegación de eventos: un solo listener para todos los botones
+    lista.addEventListener("click", (evento) => {
+        const boton = evento.target.closest("[data-id]");
+        if (boton) abrirPokemonNivel3(boton.dataset.id);   // Abre el NIVEL 3
+    });
+
+    cuerpo.replaceChildren(
+        titulo,
+        crearBloqueTipos("Fuerte contra (hace doble daño)", t.doubleDamageTo),
+        crearBloqueTipos("Débil contra (recibe doble daño)", t.doubleDamageFrom),
+        subtitulo,
+        lista
+    );
+}
+
+// Título + etiquetas de colores con una lista de tipos
+function crearBloqueTipos(titulo, nombres) {
+    const bloque = crearElemento("div", "mt-3");
+    bloque.appendChild(crearElemento("h3", "mb-1 text-base font-bold", titulo));
+    const fila = crearElemento("div", "flex flex-wrap gap-2");
+    if (nombres.length === 0) fila.appendChild(crearElemento("span", "text-tinta-suave", "Ninguno"));
+    nombres.forEach(n => fila.appendChild(
+        crearElemento("span", CLASES_TIPO + (COLORES_TIPO[n] || COLOR_TIPO_DEFECTO), n)));
+    bloque.appendChild(fila);
+    return bloque;
+}
+
+// ---------- NIVEL 3: mini ficha del Pokémon -> reutiliza el ENDPOINT 3 ----------
+async function abrirPokemonNivel3(id) {
+    const { cuerpo, error } = crearPopupExtra(3, "Pokémon " + id);
+    try {
+        const d = await pedirJson(`${URL_API}/${id}`);     // GET /api/pokemon/{id}
+        pintarPokemonNivel3(cuerpo, d);
+    } catch (e) {
+        cuerpo.replaceChildren();
+        error.textContent = e.message;
+        error.classList.remove("hidden");
+    }
+}
+
+// Contenido compacto del nivel 3 (aquí NO hay más clics: el máximo son 3 niveles)
+function pintarPokemonNivel3(cuerpo, d) {
+    const imagen = crearElemento("img", "block w-[160px] max-w-[60%] mx-auto");
+    imagen.src = d.imageUrl;
+    imagen.alt = d.name;
+    const tipos = crearElemento("div", "flex justify-center gap-2 flex-wrap");
+    d.types.forEach(tp => tipos.appendChild(
+        crearElemento("span", CLASES_TIPO + (COLORES_TIPO[tp] || COLOR_TIPO_DEFECTO), tp)));
+
+    cuerpo.replaceChildren(
+        imagen,
+        crearElemento("p", "text-center text-tinta-suave", formatearNumero(d.id)),
+        crearElemento("h2", "mb-2 text-center text-[1.4rem] font-bold", capitalizar(d.name)),
+        tipos,
+        crearElemento("p", "my-3 text-[.95rem]", d.description),
+        crearElemento("p", "text-center font-semibold", `${d.heightMeters} m · ${d.weightKg} kg`)
+    );
+}

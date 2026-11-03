@@ -25,6 +25,7 @@ import com.example.pokedex.service.PokemonService;    // Servicio con la lógica
  *   ENDPOINT 1  GET /api/pokemon?offset=0&limit=30   -> lista de tarjetas
  *   ENDPOINT 2  GET /api/pokemon/search?q=pika       -> tarjetas filtradas por texto
  *   ENDPOINT 3  GET /api/pokemon/{id}                -> detalle completo para el popup
+ *   ENDPOINT 4  GET /api/pokemon/tipo/{nombre}      -> detalle de un tipo (popup nivel 2)
  *
  * Recorrido del usuario: ve tarjetas (1 o 2) -> hace clic en una -> app.js toma su "id" -> endpoint 3.
  *
@@ -85,6 +86,14 @@ public class PokemonController {
     @ResponseBody
     public Pokemon detalle(@PathVariable int id) { // {id} de la URL llega aquí
         return pokemonService.obtenerDetalle(id);
+    }
+
+    // ---------------- ENDPOINT 4: detalle de un TIPO (popup nivel 2) ----------------
+    // Ejemplo: GET /api/pokemon/tipo/fire
+    @GetMapping("/api/pokemon/tipo/{nombre}")
+    @ResponseBody
+    public Map<String, Object> tipo(@PathVariable String nombre) { // {nombre} de la URL llega aquí
+        return pokemonService.obtenerTipo(nombre);
     }
 
     // ---------------- ERRORES: se convierten en JSON {"error": "..."} ----------------
