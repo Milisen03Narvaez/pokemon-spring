@@ -298,8 +298,15 @@ Se utiliza el identificador de la tarea de Jira para mantener relacionados los c
 **API externa:** [PokeAPI](https://pokeapi.co/)
 
 ---
+## Despliegue con Docker Hub y AWS EC2
 
-**Proyecto:** Pokédex Spring Boot  
-**Lenguaje:** Java 17  
-**Framework:** Spring Boot 3.2  
-**Puerto de ejecución:** 8080
+Imagen publicada: `milisen03narvaez/pokedex:v1`
+
+Ejecutar en cualquier máquina con Docker (se publica en el puerto 8082 del host, nunca en el 8080):
+
+```
+docker run -d --name pokedex --restart unless-stopped -p 8082:8080 -e JAVA_TOOL_OPTIONS=-Xmx256m milisen03narvaez/pokedex:v1
+```
+
+Abrir http://localhost:8082 (o http://IP-DE-LA-EC2:8082 en el servidor).
+El Security Group de la EC2 debe permitir el puerto 8082 solo desde la IP del administrador.
