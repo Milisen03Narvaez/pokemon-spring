@@ -13,7 +13,7 @@
 
 // ---------- CONSTANTES (valores fijos que se pueden cambiar fácil) ----------
 const RETARDO_BUSQUEDA_MS = 4000;   // 4 segundos de espera antes de buscar
-const URL_API = "/api/pokemon";     // Prefijo de los endpoints de PokemonController
+const URL_API = "api/pokemon";   // Prefijo de los endpoints de PokemonController
 const TAMANO_PAGINA = 30;           // Debe coincidir con pokedex.page-size de application.properties
 
 // Traducción de nombres de estadísticas (la API los da en inglés)
